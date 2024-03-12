@@ -1,2 +1,3 @@
 rootProject.name = 'java-kafka-with-gradle-demo'
+include 'kafka-basics'
 
