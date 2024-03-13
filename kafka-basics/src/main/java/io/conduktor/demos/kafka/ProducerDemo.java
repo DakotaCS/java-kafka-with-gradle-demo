@@ -5,7 +5,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.Properties;
 
 public class ProducerDemo {
@@ -13,8 +12,7 @@ public class ProducerDemo {
     private static final Logger log = LoggerFactory.getLogger((ProducerDemo.class.getSimpleName()));
 
     public static void main(String[] args) {
-        System.out.println("hello world");
-        log.info("hello world log");
+        log.info("Kafka Producer Log");
 
         //Local Kafka Server
         Properties props = new Properties();
@@ -32,11 +30,7 @@ public class ProducerDemo {
 
         ProducerRecord<String,String> producerRecord = new ProducerRecord<>("demo_java","hello world");
 
-    producer.send(producerRecord);
-    producer.close();
-
-
-
-
+        producer.send(producerRecord);
+        producer.close();
     }
 }
