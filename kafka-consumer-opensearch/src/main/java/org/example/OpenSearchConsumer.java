@@ -1,16 +1,19 @@
 package org.example;
 
+import com.google.gson.JsonParser;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultConnectionKeepAliveStrategy;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.lucene.index.IndexReader;
+import org.opensearch.action.bulk.BulkRequest;
+import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.client.RequestOptions;
@@ -18,17 +21,15 @@ import org.opensearch.client.RestClient;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
+import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.xcontent.XContentBuilder;
-import org.opensearch.index.mapper.DynamicTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Properties;
-import org.opensearch.common.xcontent.*;
 
 public class OpenSearchConsumer {
 
@@ -83,6 +84,7 @@ public class OpenSearchConsumer {
         props.put("value.deserializer", StringDeserializer.class.getName());
         props.put("group.id", groupId);
         props.put("auto.offset.reset","latest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "latest");
 
         return new KafkaConsumer<String, String>(props);
     }
@@ -115,6 +117,8 @@ public class OpenSearchConsumer {
                 int recordCount = records.count();
                 log.info("Received: " + recordCount + " records.");
 
+                BulkRequest bulkRequest = new BulkRequest();
+
                 for (ConsumerRecord<String,String> record : records) {
 
                     XContentBuilder builder = XContentFactory.jsonBuilder();
@@ -122,26 +126,37 @@ public class OpenSearchConsumer {
                     builder.field("field_name", record.value()); // Example: Convert value to string
                     builder.endObject();
                     try {
-                        IndexRequest indexRequest = new IndexRequest("wikimedia").source(builder);
-                        IndexResponse response = openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
-                        log.info(response.getId());
+                        String id = extractId(record.value());
+                        IndexRequest indexRequest = new IndexRequest("wikimedia").source(builder).id(id);
+                        //IndexResponse response = openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
+                        bulkRequest.add(indexRequest);
+                        //log.info(response.getId());
                     } catch(Exception e) {
 
                     }
+                }
 
-
+                if(bulkRequest.numberOfActions()>0) {
+                    BulkResponse response = openSearchClient.bulk(bulkRequest, RequestOptions.DEFAULT);
+                    log.info("inserted " + response.getItems().length + " record(s)");
+                    try {
+                        Thread.sleep(1000);
+                    } catch(InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
+                    consumer.commitAsync();
+                    log.info("Offset has been committed");
                 }
             }
-
-
         }
-
-
-
-
-
     }
 
+    private static String extractId(String json) {
+        return JsonParser.parseString(json).
+                getAsJsonObject().get("meta").
+                getAsJsonObject().get("id").
+                getAsString();
+    }
 
 
 }
