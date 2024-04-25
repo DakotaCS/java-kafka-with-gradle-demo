@@ -26,9 +26,6 @@ public class WikimediaChangesProducer {
         props.put(ProducerConfig.BATCH_SIZE_CONFIG,Integer.toString(32 * 1024));
         props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG,"snappy");
 
-
-
-
         KafkaProducer<String,String> producer = new KafkaProducer<String, String>(props);
 
         String topic = "wikimedia.recentchange";

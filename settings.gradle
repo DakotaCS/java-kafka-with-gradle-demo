@@ -1,4 +1,5 @@
 rootProject.name = 'java-kafka-with-gradle-demo'
 include 'kafka-basics'
 include 'kafka-producer-wikimedia'
+include 'kafka-consumer-opensearch'
 
